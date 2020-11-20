@@ -48,7 +48,7 @@ func (g *Group)Get(key string)(byteView, error){
 		log.Println("[GeeCache] hit")
 		return v, nil
 	}
-	return g.getLocally(key)
+	return g.load(key)
 }
 
 func (g *Group) getLocally(key string)(byteView, error){
@@ -70,6 +70,25 @@ func (g *Group) RegisterPeers(peers PeerPicker){
 		panic("Register peer called more than once")
 	}
 	g.peers = peers
+}
+
+func (g *Group) getFromPeer(peer PeerGetter, key string)(byteView, error){
+	bytes, err := peer.Get(g.name, key)
+	if err != nil{
+		return byteView{}, err
+	}
+	return byteView{b: bytes}, nil
+}
+func (g *Group) load(key string)(byteView, error){
+	if g.peers != nil{
+		if peer, ok := g.peers.PickPeer(key); ok{
+			if value, err := g.getFromPeer(peer, key);err == nil{
+				return value, nil
+			}
+			log.Println("[Cache] Failed to get from peer")
+		}
+	}
+	return g.getLocally(key)
 }
 
 
