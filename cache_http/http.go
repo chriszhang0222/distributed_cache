@@ -3,7 +3,9 @@ package cache_http
 import (
 	"distributed_cache/cache"
 	"distributed_cache/consisenthash"
+	pb "distributed_cache/geecachepb"
 	"fmt"
+	"github.com/golang/protobuf/proto"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -87,10 +89,16 @@ func (p *HTTPPool) ServeHTTP(w http.ResponseWriter, r *http.Request){
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	body, err := proto.Marshal(&pb.Response{Value: view.ByteSlice()})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Write(view.ByteSlice())
+	w.Write(body)
 }
 
+/*
 func (h *httpGetter)Get(group string, key string)([]byte, error){
 	u := fmt.Sprintf("%v%v/%v",
 		h.baseUrl, url.QueryEscape(group), url.QueryEscape(key))
@@ -107,6 +115,30 @@ func (h *httpGetter)Get(group string, key string)([]byte, error){
 		return nil, fmt.Errorf("reading response body: %v", err)
 	}
 	return bytes, nil
+}
+*/
+
+func (h *httpGetter)GetRPC(in *pb.Request, out *pb.Response) error{
+	u := fmt.Sprintf("%v%v/%v", h.baseUrl, url.QueryEscape(in.GetGroup()),url.QueryEscape(in.GetKey()))
+	res, err := http.Get(u)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("server returned: %v", res.Status)
+	}
+
+	bytes, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return fmt.Errorf("reading response body: %v", err)
+	}
+
+	if err = proto.Unmarshal(bytes, out); err != nil {
+		return fmt.Errorf("decoding response body: %v", err)
+	}
+	return nil
 }
 
 var _ cache.PeerGetter = (*httpGetter)(nil)
