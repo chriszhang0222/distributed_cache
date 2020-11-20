@@ -22,7 +22,9 @@ type Value interface {
 
 func New(maxBytes int64, onEvicted func(string, Value)) *Cache {
 	return &Cache{
-		maxBytes: maxBytes,
+		maxBytes:  maxBytes,
+		ll:        list.New(),
+		cache:     make(map[string]*list.Element),
 		OnEvicted: onEvicted,
 	}
 }

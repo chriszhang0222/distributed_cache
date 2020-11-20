@@ -92,7 +92,7 @@ func (p *HTTPPool) ServeHTTP(w http.ResponseWriter, r *http.Request){
 }
 
 func (h *httpGetter)Get(group string, key string)([]byte, error){
-	u := fmt.Sprintf("%v/%v/%v",
+	u := fmt.Sprintf("%v%v/%v",
 		h.baseUrl, url.QueryEscape(group), url.QueryEscape(key))
 	res, err := http.Get(u)
 	if err != nil{
